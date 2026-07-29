@@ -1,6 +1,8 @@
 library(tidyverse)
 library(ggplot2)
 library(modeldata)
+library(car)  # For Levene's test
+library(stringr)  # For string manipulation
 
 # Make sure a folder exists for exported figures
 if (!dir.exists("plots")) {
@@ -184,15 +186,87 @@ if (!is.null(org_label_col)) {
   )
 }
 
-# 3) Optional: compare organizations across measures if you have a repeated measure structure
-if (!is.null(org_label_col) && "measure_title" %in% names(df)) {
-  org_measure_summary <- df %>%
-    group_by(.data[[org_label_col]], measure_title) %>%
+# 3) Variance summary table, Levene's test, Welch's ANOVA, and a violin plot by measure
+if ("measure_title" %in% names(df)) {
+  variance_summary <- df %>%
+    mutate(measure_title = as.character(measure_title)) %>%
+    group_by(measure_title) %>%
     summarise(
       mean_score = mean(.data[[value_col]], na.rm = TRUE),
+      sd_score = sd(.data[[value_col]], na.rm = TRUE),
+      var_score = var(.data[[value_col]], na.rm = TRUE),
       n = n(),
       .groups = "drop"
+    ) %>%
+    arrange(desc(sd_score))
+
+  print(variance_summary)
+
+  # Levene's test for equality of variances across measures
+  levene_test <- car::leveneTest(
+    df[[value_col]] ~ df$measure_title
+  )
+
+  print(levene_test)
+
+  # Prepare a version of the data without missing values for ANOVA and plotting
+  analysis_df <- df %>%
+    mutate(measure_title = as.character(measure_title)) %>%
+    filter(!is.na(.data[[value_col]]), !is.na(measure_title))
+
+  analysis_df$measure_title <- factor(analysis_df$measure_title)
+
+  # Welch's ANOVA for comparing means when variances are unequal
+  welch_test <- stats::oneway.test(
+    as.formula(paste0(value_col, " ~ measure_title")),
+    data = analysis_df
+  )
+
+  print(welch_test)
+
+  analysis_df <- analysis_df %>%
+    mutate(
+      measure_label = str_remove(measure_title, "^CAHPS for MIPS SSM: "),
+      measure_label = str_replace_all(measure_label, "[\r\n]+", " "),
+      measure_label = str_replace_all(measure_label, "\\s+", " "),
+      measure_label = str_squish(measure_label),
+      measure_label = str_wrap(measure_label, width = 28)
     )
 
-  print(head(org_measure_summary))
+  # Violin plot to show the distribution of scores by measure
+  plot_violin <- ggplot(analysis_df, aes(x = measure_label, y = .data[[value_col]])) +
+    geom_violin(fill = "skyblue", alpha = 0.85, trim = FALSE, width = 0.9, scale = "width") +
+    geom_boxplot(width = 0.12, fill = "white", outlier.alpha = 0.4, position = position_dodge(width = 0.9)) +
+    stat_summary(fun = mean, geom = "point", shape = 18, size = 2.5, color = "darkred", position = position_dodge(width = 0.9)) +
+    labs(
+      title = paste("Score distribution by measure for", value_col),
+      subtitle = "Each violin shows the distribution of scores within a measure",
+      x = "Measure",
+      y = paste("Score", value_col)
+    ) +
+    scale_y_continuous(breaks = seq(0, 100, by = 5), limits = c(0, 100)) +
+    theme_minimal(base_size = 16) +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 14),
+      axis.title.x = element_text(size = 14, face = "bold"),
+      axis.title.y = element_text(size = 14, face = "bold"),
+      plot.title = element_text(size = 18, face = "bold"),
+      plot.subtitle = element_text(size = 14),
+      panel.background = element_rect(fill = "#f0f0f0", colour = NA),
+      plot.background = element_rect(fill = "#f0f0f0", colour = NA),
+      panel.grid.major.y = element_line(color = "#d0d0d0"),
+      panel.grid.minor.y = element_blank()
+    )
+
+  print(plot_violin)
+  ggsave(
+    "plots/violin_plot.png",
+    plot_violin,
+    width = 12,
+    height = 8,
+    dpi = 300,
+    bg = "#f0f0f0"
+  )
+} else {
+  message("The dataset does not contain a measure_title column, so variance testing was skipped.")
 }
