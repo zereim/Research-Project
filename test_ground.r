@@ -56,10 +56,12 @@ print(measure_summary)
 
 # Plot measure-level averages
 plot_measure <- measure_summary %>%
-  mutate(measure_title = str_wrap(measure_title, width = 28)) %>%
-  ggplot(aes(x = reorder(measure_title, mean_score), y = mean_score)) +
+  mutate(
+    measure_label = str_remove(measure_title, "^CAHPS for MIPS SSM: "),
+    measure_label = str_wrap(measure_label, width = 24)
+  ) %>%
+  ggplot(aes(x = reorder(measure_label, mean_score), y = mean_score)) +
   geom_col(fill = "steelblue", alpha = 0.9, width = 0.6) +
-  coord_flip() +
   labs(
     title = "Average score by measure",
     x = "Measure",
@@ -67,18 +69,55 @@ plot_measure <- measure_summary %>%
   ) +
   theme_minimal(base_size = 18) +
   theme(
-    axis.text.y = element_text(size = 13),
+    axis.text.y = element_text(size = 12),
     axis.text.x = element_text(size = 13),
     axis.title = element_text(size = 16),
-    plot.title = element_text(size = 18, face = "bold")
-  )
+    plot.title = element_text(size = 18, face = "bold"),
+    panel.background = element_rect(fill = "#d9d9d9", colour = NA),
+    plot.background = element_rect(fill = "#d9d9d9", colour = NA)
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = seq(0, 100, by = 5))
 
 print(plot_measure)
-ggsave("plots/measure_plot.png", plot_measure, width = 10, height = 7, dpi = 300)
+ggsave(
+    "plots/measure_plot.png",
+    plot_measure,
+    width = 10,
+    height = 7,
+    dpi = 300,
+    bg = "#d9d9d9"
+  )
 
 # 2) Variation across organizations: average and spread by organization name or ID
+make_short_label <- function(x) {
+  x <- as.character(x)
+  x <- str_squish(x)
+  x <- str_replace_all(x, "\\s+", " ")
+  x <- str_replace_all(x, " MEDICAL GROUP", " MG")
+  x <- str_replace_all(x, " HEALTH", " H")
+  x <- str_replace_all(x, " HOSPITAL", " H")
+  x <- str_replace_all(x, " PHYSICIANS", " P")
+  x <- str_replace_all(x, " UNIVERSITY", " U")
+  x <- str_replace_all(x, " INC", "")
+  x <- str_replace_all(x, " LLC", "")
+  x <- str_replace_all(x, " PLLC", "")
+  x <- str_replace_all(x, " CORPORATION", " CO")
+  x <- str_replace_all(x, " ASSOCIATION", " ASSN")
+  x <- str_replace_all(x, " SYSTEM", " SYS")
+  x <- str_replace_all(x, " OF THE", "")
+  x <- str_replace_all(x, " THE ", "")
+  x <- str_replace_all(x, "\\s+", " ")
+  x <- str_wrap(x, width = 18)
+  x
+}
+
 org_label_col <- NULL
-for (col in c("org_name", "organization_name", "org_nm", "provider_name", "hospital_name", "org_pac_id", "org_id", "organization_id", "provider_id", "hospital_id")) {
+for (col in c(
+  "org_name", "organization_name", "org_nm", "provider_name",
+  "hospital_name", "org_pac_id", "org_id", "organization_id",
+  "provider_id", "hospital_id"
+)) {
   if (col %in% names(df)) {
     org_label_col <- col
     break
@@ -107,10 +146,11 @@ if (!is.null(org_label_col)) {
 
   # Plot top organizations
   plot_org <- top_orgs %>%
-    mutate(org_label = str_wrap(as.character(org_label), width = 20)) %>%
+    mutate(
+      org_label = make_short_label(org_label)
+    ) %>%
     ggplot(aes(x = reorder(org_label, mean_score), y = mean_score)) +
     geom_col(fill = "darkgreen", alpha = 0.9, width = 0.6) +
-    coord_flip() +
     labs(
       title = "Top-performing organizations",
       x = "Organization",
@@ -118,16 +158,30 @@ if (!is.null(org_label_col)) {
     ) +
     theme_minimal(base_size = 18) +
     theme(
-      axis.text.y = element_text(size = 12),
+      axis.text.y = element_text(size = 11),
       axis.text.x = element_text(size = 13),
       axis.title = element_text(size = 16),
-      plot.title = element_text(size = 18, face = "bold")
-    )
+      plot.title = element_text(size = 18, face = "bold"),
+      panel.background = element_rect(fill = "#d9d9d9", colour = NA),
+      plot.background = element_rect(fill = "#d9d9d9", colour = NA)
+    ) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    scale_y_continuous(breaks = seq(0, 100, by = 5))
 
   print(plot_org)
-  ggsave("plots/organization_plot.png", plot_org, width = 10, height = 7, dpi = 300)
+  ggsave(
+    "plots/organization_plot.png",
+    plot_org,
+    width = 10,
+    height = 7,
+    dpi = 300,
+    bg = "#d9d9d9"
+  )
 } else {
-  message("The dataset does not contain an organization-name or organization-ID column, so organization-level ranking was skipped.")
+  message(
+    "The dataset does not contain an organization-name or organization-ID ",
+    "column, so organization-level ranking was skipped."
+  )
 }
 
 # 3) Optional: compare organizations across measures if you have a repeated measure structure
