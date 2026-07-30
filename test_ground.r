@@ -209,6 +209,27 @@ if ("measure_title" %in% names(df)) {
 
   print(variance_summary)
 
+  analysis_df <- df |>
+    filter(!is.na(.data[[value_col]]), !is.na(measure_title)) |>
+    mutate(measure_title = as.factor(measure_title))
+  # Check how much the groups actually differ in spread
+  spread_check <- analysis_df |>
+    group_by(measure_title) |>
+    summarise(
+      n = n(),
+      mean = mean(.data[[value_col]], na.rm = TRUE),
+      sd = sd(.data[[value_col]], na.rm = TRUE),
+      var = var(.data[[value_col]], na.rm = TRUE),
+      .groups = "drop"
+    )
+
+  print(spread_check)
+  
+  # Multiple variance tests
+  car::leveneTest(analysis_df[[value_col]] ~ analysis_df$measure_title)
+  stats::bartlett.test(analysis_df[[value_col]] ~ analysis_df$measure_title)
+  stats::fligner.test(analysis_df[[value_col]] ~ analysis_df$measure_title)
+
   # levene's test for equality of variances across measures
   levene_test <- car::leveneTest(
     df[[value_col]] ~ df$measure_title
@@ -241,7 +262,8 @@ if ("measure_title" %in% names(df)) {
     )
 
   # violin plot to show the distribution of scores by measure
-  plot_violin <- ggplot(analysis_df, aes(x = measure_label, y = .data[[value_col]])) +
+  plot_violin <- ggplot(analysis_df, 
+  aes(x = measure_label, y = .data[[value_col]])) +
     geom_violin(fill = "skyblue", alpha = 0.85, trim = FALSE, width = 0.9, scale = "width") +
     geom_boxplot(width = 0.12, fill = "white", outlier.alpha = 0.4, position = position_dodge(width = 0.9)) +
     stat_summary(fun = mean, geom = "point", shape = 18, size = 2.5, color = "darkred", position = position_dodge(width = 0.9)) +
