@@ -1,8 +1,8 @@
 library(tidyverse)
 library(ggplot2)
 library(modeldata)
-library(car)  # For Levene's test
-library(stringr)  # For string manipulation
+library(car)
+library(stringr)
 
 # Make sure a folder exists for exported figures
 if (!dir.exists("plots")) {
@@ -14,22 +14,24 @@ if (!exists("cms_patient_experience")) {
   data(cms_patient_experience, package = "modeldata")
 }
 
-# If your data object has a different name, replace cms_patient_experience below
-# with that name.
+# Throwing the loaded dataset into a variable for easier reference
 df <- cms_patient_experience
 
 # View a compact preview of the dataset in the console
-print(head(df, 10))
+# print(head(df, 10))
 
-# Find a numeric value column automatically if the name is not exactly "score"
+
+# Creating a variable to hold the name of the column
 value_col <- NULL
+# Find a numeric value column automatically if the name is not exactly "score"
 for (col in c("score", "value", "measure_value", "score_value")) {
   if (col %in% names(df)) {
     value_col <- col
     break
   }
 }
-
+# Checking if a numeric column was found, and if not,
+# defaulting to the first numeric column in the dataset
 if (is.null(value_col)) {
   numeric_cols <- names(df)[sapply(df, is.numeric)]
   if (length(numeric_cols) == 0) {
@@ -43,25 +45,25 @@ if (!"measure_title" %in% names(df)) {
 }
 
 # 1) Variation across measures: average and spread by measure_title
-measure_summary <- df %>%
-  mutate(measure_title = as.character(measure_title)) %>%
-  group_by(measure_title) %>%
+measure_summary <- df |>
+  mutate(measure_title = as.character(measure_title)) |>
+  group_by(measure_title) |>
   summarise(
     mean_score = mean(.data[[value_col]], na.rm = TRUE),
     sd_score = sd(.data[[value_col]], na.rm = TRUE),
     n = n(),
     .groups = "drop"
-  ) %>%
+  ) |>
   arrange(desc(mean_score))
 
 print(measure_summary)
 
 # Plot measure-level averages
-plot_measure <- measure_summary %>%
+plot_measure <- measure_summary |>
   mutate(
     measure_label = str_remove(measure_title, "^CAHPS for MIPS SSM: "),
     measure_label = str_wrap(measure_label, width = 24)
-  ) %>%
+  ) |>
   ggplot(aes(x = reorder(measure_label, mean_score), y = mean_score)) +
   geom_col(fill = "steelblue", alpha = 0.9, width = 0.6) +
   labs(
@@ -127,30 +129,30 @@ for (col in c(
 }
 
 if (!is.null(org_label_col)) {
-  org_summary <- df %>%
-    group_by(.data[[org_label_col]]) %>%
+  org_summary <- df |>
+    group_by(.data[[org_label_col]]) |>
     summarise(
       mean_score = mean(.data[[value_col]], na.rm = TRUE),
       sd_score = sd(.data[[value_col]], na.rm = TRUE),
       n = n(),
       .groups = "drop"
-    ) %>%
+    ) |>
     arrange(desc(mean_score))
 
   names(org_summary)[1] <- "org_label"
   print(org_summary)
 
   # Top-performing organizations
-  top_orgs <- org_summary %>%
+  top_orgs <- org_summary |>
     slice_max(order_by = mean_score, n = 10)
 
   print(top_orgs)
 
   # Plot top organizations
-  plot_org <- top_orgs %>%
+  plot_org <- top_orgs |>
     mutate(
       org_label = make_short_label(org_label)
-    ) %>%
+    ) |>
     ggplot(aes(x = reorder(org_label, mean_score), y = mean_score)) +
     geom_col(fill = "darkgreen", alpha = 0.9, width = 0.6) +
     labs(
@@ -188,16 +190,16 @@ if (!is.null(org_label_col)) {
 
 # 3) Variance summary table, Levene's test, Welch's ANOVA, and a violin plot by measure
 if ("measure_title" %in% names(df)) {
-  variance_summary <- df %>%
-    mutate(measure_title = as.character(measure_title)) %>%
-    group_by(measure_title) %>%
+  variance_summary <- df |>
+    mutate(measure_title = as.character(measure_title)) |>
+    group_by(measure_title) |>
     summarise(
       mean_score = mean(.data[[value_col]], na.rm = TRUE),
       sd_score = sd(.data[[value_col]], na.rm = TRUE),
       var_score = var(.data[[value_col]], na.rm = TRUE),
       n = n(),
       .groups = "drop"
-    ) %>%
+    ) |>
     arrange(desc(sd_score))
 
   print(variance_summary)
@@ -210,8 +212,8 @@ if ("measure_title" %in% names(df)) {
   print(levene_test)
 
   # Prepare a version of the data without missing values for ANOVA and plotting
-  analysis_df <- df %>%
-    mutate(measure_title = as.character(measure_title)) %>%
+  analysis_df <- df |>
+    mutate(measure_title = as.character(measure_title)) |>
     filter(!is.na(.data[[value_col]]), !is.na(measure_title))
 
   analysis_df$measure_title <- factor(analysis_df$measure_title)
@@ -224,7 +226,7 @@ if ("measure_title" %in% names(df)) {
 
   print(welch_test)
 
-  analysis_df <- analysis_df %>%
+  analysis_df <- analysis_df |>
     mutate(
       measure_label = str_remove(measure_title, "^CAHPS for MIPS SSM: "),
       measure_label = str_replace_all(measure_label, "[\r\n]+", " "),
