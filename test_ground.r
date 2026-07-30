@@ -208,7 +208,9 @@ if ("measure_title" %in% names(df)) {
     arrange(desc(sd_score))
 
   print(variance_summary)
+  # variance testing
 
+  # making sure that the variance testing is working and I didn't mess up
   analysis_df <- df |>
     filter(!is.na(.data[[value_col]]), !is.na(measure_title)) |>
     mutate(measure_title = as.factor(measure_title))
@@ -224,7 +226,7 @@ if ("measure_title" %in% names(df)) {
     )
 
   print(spread_check)
-  
+
   # Multiple variance tests
   car::leveneTest(analysis_df[[value_col]] ~ analysis_df$measure_title)
   stats::bartlett.test(analysis_df[[value_col]] ~ analysis_df$measure_title)
@@ -263,13 +265,20 @@ if ("measure_title" %in% names(df)) {
 
   # violin plot to show the distribution of scores by measure
   plot_violin <- ggplot(analysis_df, 
-  aes(x = measure_label, y = .data[[value_col]])) +
-    geom_violin(fill = "skyblue", alpha = 0.85, trim = FALSE, width = 0.9, scale = "width") +
-    geom_boxplot(width = 0.12, fill = "white", outlier.alpha = 0.4, position = position_dodge(width = 0.9)) +
-    stat_summary(fun = mean, geom = "point", shape = 18, size = 2.5, color = "darkred", position = position_dodge(width = 0.9)) +
+                        aes(x = measure_label, y = .data[[value_col]])) +
+    geom_violin(
+                fill = "skyblue", alpha = 0.85, trim = FALSE,
+                width = 0.9, scale = "width") +
+    geom_boxplot(
+                width = 0.12, fill = "white", outlier.alpha = 0.4, # nolint
+                position = position_dodge(width = 0.9)) +
+    stat_summary(
+                fun = mean, geom = "point", shape = 18, # nolint
+                size = 2.5, color = "darkred",
+                position = position_dodge(width = 0.9)) +
     labs(
       title = paste("Score distribution by measure for", value_col),
-      subtitle = "Each violin shows the distribution of scores within a measure",
+      subtitle = "Each violin shows the distribution of scores within a measure", # nolint
       x = "Measure",
       y = paste("Score", value_col)
     ) +
@@ -297,5 +306,6 @@ if ("measure_title" %in% names(df)) {
     bg = "#f0f0f0"
   )
 } else {
-  message("The dataset does not contain a measure_title column, so variance testing was skipped.")
+  message("The dataset does not contain a measure_title column, 
+  so variance testing was skipped.")
 }
