@@ -4,33 +4,33 @@ library(modeldata)
 library(car)
 library(stringr)
 
-# Make sure a folder exists for exported figures
+# make sure a folder exists for exported figures
 if (!dir.exists("plots")) {
   dir.create("plots")
 }
 
-# Load the healthcare dataset if it is available in your R environment
+# load the healthcare dataset if it is available in your R environment
 if (!exists("cms_patient_experience")) {
   data(cms_patient_experience, package = "modeldata")
 }
 
-# Throwing the loaded dataset into a variable for easier reference
+# throwing the loaded dataset into a variable for easier reference
 df <- cms_patient_experience
 
-# View a compact preview of the dataset in the console
+# view a compact preview of the dataset in the console
 # print(head(df, 10))
 
 
-# Creating a variable to hold the name of the column
+# creating a variable to hold the name of the column
 value_col <- NULL
-# Find a numeric value column automatically if the name is not exactly "score"
+# find a numeric value column automatically if the name is not exactly "score"
 for (col in c("score", "value", "measure_value", "score_value")) {
   if (col %in% names(df)) {
     value_col <- col
     break
   }
 }
-# Checking if a numeric column was found, and if not,
+# checking if a numeric column was found, and if not,
 # defaulting to the first numeric column in the dataset
 if (is.null(value_col)) {
   numeric_cols <- names(df)[sapply(df, is.numeric)]
@@ -44,7 +44,7 @@ if (!"measure_title" %in% names(df)) {
   stop("The dataset must contain a measure_title column.")
 }
 
-# 1) Variation across measures: average and spread by measure_title
+# 1) variation across measures: average and spread by measure_title
 measure_summary <- df |>
   mutate(measure_title = as.character(measure_title)) |>
   group_by(measure_title) |>
@@ -58,7 +58,7 @@ measure_summary <- df |>
 
 print(measure_summary)
 
-# Plot measure-level averages
+# plot measure-level averages
 plot_measure <- measure_summary |>
   mutate(
     measure_label = str_remove(measure_title, "^CAHPS for MIPS SSM: "),
@@ -85,15 +85,19 @@ plot_measure <- measure_summary |>
 
 print(plot_measure)
 ggsave(
-    "plots/measure_plot.png",
-    plot_measure,
-    width = 10,
-    height = 7,
-    dpi = 300,
-    bg = "#d9d9d9"
-  )
+  "plots/measure_plot.png",
+  plot_measure,
+  width = 10,
+  height = 7,
+  dpi = 300,
+  bg = "#d9d9d9"
+)
 
-# 2) Variation across organizations: average and spread by organization name or ID
+# 2) variation across organizations: average and
+# spread by organization name or ID
+
+# making a function that shortens the org names
+# for better readability
 make_short_label <- function(x) {
   x <- as.character(x)
   x <- str_squish(x)
@@ -116,11 +120,11 @@ make_short_label <- function(x) {
   x
 }
 
+
 org_label_col <- NULL
+# taking all of the column names that might reference an organization name
 for (col in c(
-  "org_name", "organization_name", "org_nm", "provider_name",
-  "hospital_name", "org_pac_id", "org_id", "organization_id",
-  "provider_id", "hospital_id"
+  "org_nm", "org_pac_id"
 )) {
   if (col %in% names(df)) {
     org_label_col <- col
@@ -142,13 +146,13 @@ if (!is.null(org_label_col)) {
   names(org_summary)[1] <- "org_label"
   print(org_summary)
 
-  # Top-performing organizations
+  # top-performing organizations
   top_orgs <- org_summary |>
     slice_max(order_by = mean_score, n = 10)
 
   print(top_orgs)
 
-  # Plot top organizations
+  # plot top organizations
   plot_org <- top_orgs |>
     mutate(
       org_label = make_short_label(org_label)
@@ -188,7 +192,8 @@ if (!is.null(org_label_col)) {
   )
 }
 
-# 3) Variance summary table, Levene's test, Welch's ANOVA, and a violin plot by measure
+# 3) variance summary table, Levene's test,
+# Welch's ANOVA, and a violin plot by measure
 if ("measure_title" %in% names(df)) {
   variance_summary <- df |>
     mutate(measure_title = as.character(measure_title)) |>
@@ -204,21 +209,21 @@ if ("measure_title" %in% names(df)) {
 
   print(variance_summary)
 
-  # Levene's test for equality of variances across measures
+  # levene's test for equality of variances across measures
   levene_test <- car::leveneTest(
     df[[value_col]] ~ df$measure_title
   )
 
   print(levene_test)
 
-  # Prepare a version of the data without missing values for ANOVA and plotting
+  # prepare a version of the data without missing values for ANOVA and plotting
   analysis_df <- df |>
     mutate(measure_title = as.character(measure_title)) |>
     filter(!is.na(.data[[value_col]]), !is.na(measure_title))
 
   analysis_df$measure_title <- factor(analysis_df$measure_title)
 
-  # Welch's ANOVA for comparing means when variances are unequal
+  # welch's ANOVA for comparing means when variances are unequal
   welch_test <- stats::oneway.test(
     as.formula(paste0(value_col, " ~ measure_title")),
     data = analysis_df
@@ -235,7 +240,7 @@ if ("measure_title" %in% names(df)) {
       measure_label = str_wrap(measure_label, width = 28)
     )
 
-  # Violin plot to show the distribution of scores by measure
+  # violin plot to show the distribution of scores by measure
   plot_violin <- ggplot(analysis_df, aes(x = measure_label, y = .data[[value_col]])) +
     geom_violin(fill = "skyblue", alpha = 0.85, trim = FALSE, width = 0.9, scale = "width") +
     geom_boxplot(width = 0.12, fill = "white", outlier.alpha = 0.4, position = position_dodge(width = 0.9)) +
