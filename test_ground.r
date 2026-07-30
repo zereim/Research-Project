@@ -272,6 +272,9 @@ if ("measure_title" %in% names(df)) {
     geom_boxplot(
                 width = 0.12, fill = "white", outlier.alpha = 0.4, # nolint
                 position = position_dodge(width = 0.9)) +
+    geom_jitter(
+                width = 0.12, alpha = 0.25, size = 1.1,
+                color = "darkslategray") +
     stat_summary(
                 fun = mean, geom = "point", shape = 18, # nolint
                 size = 2.5, color = "darkred",
